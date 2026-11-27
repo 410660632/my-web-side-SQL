@@ -1,0 +1,463 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>my_website 五資料表留言系統（前台＋管理後台）</title>
+<style>
+  * { box-sizing: border-box; font-family: "Microsoft JhengHei", system-ui, sans-serif; }
+  body { margin: 0; background: #f3f6fb; color: #1e293b; }
+  .navbar { background: #1e293b; color: #fff; padding: 14px 24px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px; }
+  .navbar h1 { margin: 0; font-size: 18px; }
+  .nav-links { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+  .btn { display: inline-block; padding: 7px 14px; border-radius: 6px; border: none; cursor: pointer; font-size: 14px; text-decoration: none; font-weight: 600; }
+  .btn-primary { background: #2563eb; color: #fff; }
+  .btn-admin { background: #f59e0b; color: #1e293b; }
+  .btn-danger { background: #dc2626; color: #fff; padding: 5px 10px; font-size: 13px; }
+  .btn-outline { background: transparent; border: 1px solid #94a3b8; color: #fff; }
+  .container { max-width: 1040px; margin: 24px auto; padding: 0 16px; }
+  .flash { background: #dbeafe; color: #1e40af; padding: 12px 16px; border-radius: 8px; margin-bottom: 16px; font-weight: 600; }
+  .grid { display: grid; grid-template-columns: 280px 1fr; gap: 20px; }
+  @media (max-width: 768px) { .grid { grid-template-columns: 1fr; } }
+  .card { background: #fff; border-radius: 10px; padding: 18px; box-shadow: 0 2px 8px rgba(0,0,0,0.06); margin-bottom: 16px; }
+  .card h3 { margin-top: 0; font-size: 16px; border-bottom: 1px solid #e2e8f0; padding-bottom: 8px; }
+  input, select, textarea { width: 100%; padding: 8px 10px; margin-bottom: 10px; border: 1px solid #cbd5e1; border-radius: 6px; font-size: 14px; }
+  .tag { display: inline-block; padding: 3px 9px; border-radius: 99px; font-size: 12px; background: #e0e7ff; color: #3730a3; font-weight: 600; }
+  .cat-list a { display: block; padding: 7px 10px; border-radius: 6px; color: #334155; text-decoration: none; margin-bottom: 4px; cursor: pointer; }
+  .cat-list a.active, .cat-list a:hover { background: #eff6ff; color: #2563eb; font-weight: 700; }
+  .msg-meta { display: flex; justify-content: space-between; align-items: center; font-size: 13px; color: #64748b; margin-bottom: 8px; }
+  .reply-box { background: #f8fafc; border-left: 3px solid #93c5fd; padding: 8px 12px; margin-top: 8px; border-radius: 4px; font-size: 14px; }
+  .stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 12px; margin-bottom: 20px; }
+  .stat-card { background: #fff; padding: 16px; border-radius: 10px; text-align: center; box-shadow: 0 2px 6px rgba(0,0,0,0.05); }
+  .stat-card .num { font-size: 28px; font-weight: 800; color: #2563eb; }
+  table { width: 100%; border-collapse: collapse; font-size: 14px; }
+  th, td { padding: 9px 10px; border-bottom: 1px solid #e2e8f0; text-align: left; }
+  th { background: #f8fafc; }
+</style>
+</head>
+<body>
+<div id="app"></div>
+<script>
+const INITIAL_DB = {
+  categories: [
+    { id: 1, category_name: '一般討論' },
+    { id: 2, category_name: '問題回報' },
+    { id: 3, category_name: '系統公告' },
+    { id: 10, category_name: '技術交流' },
+    { id: 11, category_name: '閒聊專區' },
+    { id: 12, category_name: '網站建議' }
+  ],
+  users: [
+    { id: 1, username: 'admin', password: 'admin123', role: 'admin', email: 'admin@example.com', created_at: '2026-11-06 02:56:27' },
+    { id: 2, username: '小華', password: 'user123', role: 'user', email: 'hua@example.com', created_at: '2026-11-06 02:56:27' },
+    { id: 5, username: '小明', password: 'userpass123', role: 'user', email: 'ming@example.com', created_at: '2026-11-06 03:26:21' }
+  ],
+  messages: [
+    { id: 1, user_id: 1, category_id: 3, content: '歡迎大家來到三資料表結構的新版留言板！', likes: 2, created_at: '2026-11-06 02:56:27' },
+    { id: 2, user_id: 2, category_id: 1, content: '這是我第一次測試跨資料表留言。', likes: 0, created_at: '2026-11-06 02:56:27' },
+    { id: 3, user_id: 1, category_id: 3, content: '歡迎大家來到三資料表結構的新版留言板！', likes: 0, created_at: '2026-11-06 02:58:12' },
+    { id: 4, user_id: 2, category_id: 1, content: '這是我第一次測試跨資料表留言。', likes: 0, created_at: '2026-11-06 02:58:12' },
+    { id: 5, user_id: 1, category_id: 1, content: '這是我用 SQL INSERT INTO 手動新增的技術討論留言！', likes: 0, created_at: '2026-11-06 03:27:00' },
+    { id: 6, user_id: 5, category_id: 11, content: 'nice（已完成 UPDATE 更新測試）', likes: 1, created_at: '2026-11-06 03:32:44' }
+  ],
+  replies: [
+    { id: 1, message_id: 1, user_id: 2, reply_content: '謝謝管理員建立新版留言板！', created_at: '2026-11-28 00:22:00' },
+    { id: 2, message_id: 2, user_id: 5, reply_content: '跨資料表留言測試成功！', created_at: '2026-11-28 00:22:00' },
+    { id: 3, message_id: 5, user_id: 2, reply_content: 'SQL INSERT 新增留言很方便！', created_at: '2026-11-28 00:22:00' }
+  ],
+  message_likes: [
+    { id: 1, message_id: 1, user_id: 2, created_at: '2026-11-28 00:22:00' },
+    { id: 2, message_id: 1, user_id: 5, created_at: '2026-11-28 00:22:00' },
+    { id: 3, message_id: 6, user_id: 1, created_at: '2026-11-28 00:22:00' }
+  ]
+};
+
+let db = JSON.parse(localStorage.getItem('my_website_db_v1') || 'null') || JSON.parse(JSON.stringify(INITIAL_DB));
+let currentUser = JSON.parse(localStorage.getItem('my_website_user_v1') || 'null');
+let currentView = new URLSearchParams(location.search).get('view') || 'front';
+let catFilter = 0;
+let flashMsg = '';
+
+function saveDb() {
+  localStorage.setItem('my_website_db_v1', JSON.stringify(db));
+  localStorage.setItem('my_website_user_v1', JSON.stringify(currentUser));
+}
+
+function nowStr() {
+  const d = new Date();
+  const pad = n => String(n).padStart(2, '0');
+  return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`;
+}
+
+function nextId(arr) {
+  return arr.length ? Math.max(...arr.map(x => x.id)) + 1 : 1;
+}
+
+function esc(s) {
+  const div = document.createElement('div');
+  div.textContent = s == null ? '' : String(s);
+  return div.innerHTML;
+}
+
+function setView(v) {
+  currentView = v;
+  render();
+}
+
+function setCat(c) {
+  catFilter = c;
+  render();
+}
+
+function login(e, targetView) {
+  e.preventDefault();
+  const f = e.target;
+  const u = db.users.find(x => x.username === f.username.value.trim() && x.password === f.password.value);
+  if (u) {
+    currentUser = u;
+    flashMsg = `歡迎登入，${u.username}！`;
+    currentView = targetView;
+    saveDb();
+  } else {
+    flashMsg = '帳號或密碼錯誤';
+  }
+  render();
+}
+
+function registerUser(e) {
+  e.preventDefault();
+  const f = e.target;
+  const uname = f.username.value.trim();
+  const pwd = f.password.value.trim();
+  const email = f.email.value.trim();
+  if (!uname || !pwd) return;
+  if (db.users.some(x => x.username === uname)) {
+    flashMsg = '此帳號名稱已被使用';
+    render();
+    return;
+  }
+  const newU = { id: nextId(db.users), username: uname, password: pwd, role: 'user', email: email || null, created_at: nowStr() };
+  db.users.push(newU);
+  currentUser = newU;
+  flashMsg = '註冊成功並已自動登入！';
+  saveDb();
+  render();
+}
+
+function logout() {
+  currentUser = null;
+  flashMsg = '已登出';
+  currentView = 'front';
+  saveDb();
+  render();
+}
+
+function addMessage(e) {
+  e.preventDefault();
+  const f = e.target;
+  const catId = Number(f.category_id.value);
+  const content = f.content.value.trim();
+  if (!currentUser || !catId || !content) return;
+  db.messages.push({ id: nextId(db.messages), user_id: currentUser.id, category_id: catId, content, likes: 0, created_at: nowStr() });
+  flashMsg = '留言發布成功！';
+  saveDb();
+  render();
+}
+
+function addReply(e, msgId) {
+  e.preventDefault();
+  const content = e.target.reply_content.value.trim();
+  if (!currentUser || !content) return;
+  db.replies.push({ id: nextId(db.replies), message_id: msgId, user_id: currentUser.id, reply_content: content, created_at: nowStr() });
+  flashMsg = '回覆成功！';
+  saveDb();
+  render();
+}
+
+function toggleLike(msgId) {
+  if (!currentUser) return;
+  const idx = db.message_likes.findIndex(x => x.message_id === msgId && x.user_id === currentUser.id);
+  if (idx >= 0) {
+    db.message_likes.splice(idx, 1);
+  } else {
+    db.message_likes.push({ id: nextId(db.message_likes), message_id: msgId, user_id: currentUser.id, created_at: nowStr() });
+  }
+  saveDb();
+  render();
+}
+
+function addCategory(e) {
+  e.preventDefault();
+  const name = e.target.category_name.value.trim();
+  if (!name) return;
+  db.categories.push({ id: nextId(db.categories), category_name: name });
+  flashMsg = `已新增分類：${name}`;
+  saveDb();
+  render();
+}
+
+function deleteCategory(id) {
+  const removedMsgIds = db.messages.filter(m => m.category_id === id).map(m => m.id);
+  db.categories = db.categories.filter(c => c.id !== id);
+  db.messages = db.messages.filter(m => m.category_id !== id);
+  db.replies = db.replies.filter(r => !removedMsgIds.includes(r.message_id));
+  db.message_likes = db.message_likes.filter(l => !removedMsgIds.includes(l.message_id));
+  flashMsg = '已刪除分類（外鍵 ON DELETE CASCADE 已同步清理關聯留言）';
+  saveDb();
+  render();
+}
+
+function deleteMessage(id) {
+  db.messages = db.messages.filter(m => m.id !== id);
+  db.replies = db.replies.filter(r => r.message_id !== id);
+  db.message_likes = db.message_likes.filter(l => l.message_id !== id);
+  flashMsg = '已刪除留言（外鍵 ON DELETE CASCADE 已連動刪除回覆與按讚）';
+  saveDb();
+  render();
+}
+
+function deleteReply(id) {
+  db.replies = db.replies.filter(r => r.id !== id);
+  flashMsg = '已刪除回覆';
+  saveDb();
+  render();
+}
+
+function toggleRole(id) {
+  const u = db.users.find(x => x.id === id);
+  if (u) {
+    u.role = u.role === 'admin' ? 'user' : 'admin';
+    if (currentUser && currentUser.id === u.id) currentUser = u;
+    flashMsg = '已切換使用者權限';
+    saveDb();
+    render();
+  }
+}
+
+function deleteUser(id) {
+  const removedMsgIds = db.messages.filter(m => m.user_id === id).map(m => m.id);
+  db.users = db.users.filter(u => u.id !== id);
+  db.messages = db.messages.filter(m => m.user_id !== id);
+  db.replies = db.replies.filter(r => r.user_id !== id && !removedMsgIds.includes(r.message_id));
+  db.message_likes = db.message_likes.filter(l => l.user_id !== id && !removedMsgIds.includes(l.message_id));
+  flashMsg = '已刪除會員（外鍵 ON DELETE CASCADE 已同步清理關聯資料）';
+  saveDb();
+  render();
+}
+
+function resetDb() {
+  db = JSON.parse(JSON.stringify(INITIAL_DB));
+  flashMsg = '已還原為 my_website 初始 5 張資料表狀態';
+  saveDb();
+  render();
+}
+
+function render() {
+  const userMap = Object.fromEntries(db.users.map(u => [u.id, u]));
+  const catMap = Object.fromEntries(db.categories.map(c => [c.id, c]));
+  const msgs = [...db.messages]
+    .filter(m => catFilter === 0 || m.category_id === catFilter)
+    .sort((a, b) => b.id - a.id);
+
+  let html = `
+  <div class="navbar">
+    <h1>💬 my_website 雲端留言板系統（5 資料表＋外鍵關聯）</h1>
+    <div class="nav-links">
+      <button class="btn ${currentView === 'front' ? 'btn-primary' : 'btn-outline'}" onclick="setView('front')">🌐 前台首頁</button>
+      <button class="btn ${currentView === 'admin' ? 'btn-admin' : 'btn-outline'}" onclick="setView('admin')">⚙️ 管理後台</button>
+      ${currentUser ? `
+        <span>👤 ${esc(currentUser.username)} (${esc(currentUser.role)})</span>
+        <button class="btn btn-outline" onclick="logout()">登出</button>
+      ` : ''}
+    </div>
+  </div>
+  <div class="container">
+    ${flashMsg ? `<div class="flash">${esc(flashMsg)}</div>` : ''}
+  `;
+  flashMsg = '';
+
+  if (currentView === 'admin') {
+    html += `
+    <div class="stats-grid">
+      <div class="stat-card"><div>users 會員表</div><div class="num">${db.users.length}</div></div>
+      <div class="stat-card"><div>categories 分類表</div><div class="num">${db.categories.length}</div></div>
+      <div class="stat-card"><div>messages 留言表</div><div class="num">${db.messages.length}</div></div>
+      <div class="stat-card"><div>replies 回覆表</div><div class="num">${db.replies.length}</div></div>
+      <div class="stat-card"><div>message_likes 按讚表</div><div class="num">${db.message_likes.length}</div></div>
+    </div>`;
+
+    if (!currentUser || currentUser.role !== 'admin') {
+      html += `
+      <div class="card">
+        <h3>🔒 管理員登入（預設管理員帳號：admin ／ 密碼：admin123）</h3>
+        <form onsubmit="login(event, 'admin')" style="max-width:360px;">
+          <input type="text" name="username" value="admin" required>
+          <input type="password" name="password" value="admin123" required>
+          <button class="btn btn-primary" type="submit">登入後台管理</button>
+        </form>
+      </div>`;
+    } else {
+      html += `
+      <div style="text-align:right;margin-bottom:12px;">
+        <button class="btn btn-admin" onclick="resetDb()">🔄 還原初始資料庫預設資料</button>
+      </div>
+      <div class="card">
+        <h3>📂 分類管理（categories）</h3>
+        <form onsubmit="addCategory(event)" style="display:flex;gap:8px;max-width:420px;margin-bottom:12px;">
+          <input type="text" name="category_name" placeholder="輸入新分類名稱..." required style="margin:0;">
+          <button class="btn btn-primary" type="submit" style="white-space:nowrap;">新增分類</button>
+        </form>
+        <table>
+          <tr><th>ID</th><th>分類名稱</th><th>操作</th></tr>
+          ${db.categories.map(c => `
+            <tr>
+              <td>${c.id}</td>
+              <td>${esc(c.category_name)}</td>
+              <td><button class="btn btn-danger" onclick="deleteCategory(${c.id})">刪除</button></td>
+            </tr>
+          `).join('')}
+        </table>
+      </div>
+      <div class="card">
+        <h3>👥 會員管理（users）</h3>
+        <table>
+          <tr><th>ID</th><th>帳號</th><th>信箱</th><th>角色</th><th>操作</th></tr>
+          ${db.users.map(u => `
+            <tr>
+              <td>${u.id}</td>
+              <td>${esc(u.username)}</td>
+              <td>${esc(u.email || '')}</td>
+              <td><span class="tag">${esc(u.role)}</span></td>
+              <td style="display:flex;gap:6px;">
+                <button class="btn btn-primary" style="padding:5px 10px;font-size:13px;" onclick="toggleRole(${u.id})">切換權限</button>
+                ${u.id !== currentUser.id ? `<button class="btn btn-danger" onclick="deleteUser(${u.id})">刪除</button>` : ''}
+              </td>
+            </tr>
+          `).join('')}
+        </table>
+      </div>
+      <div class="card">
+        <h3>📝 留言管理（messages - 外鍵關聯 users & categories）</h3>
+        <table>
+          <tr><th>ID</th><th>作者</th><th>分類</th><th>內容</th><th>讚數</th><th>操作</th></tr>
+          ${db.messages.map(m => {
+            const likeCount = db.message_likes.filter(l => l.message_id === m.id).length;
+            return `
+            <tr>
+              <td>${m.id}</td>
+              <td>${esc(userMap[m.user_id]?.username || '')}</td>
+              <td>${esc(catMap[m.category_id]?.category_name || '')}</td>
+              <td>${esc(m.content)}</td>
+              <td>${likeCount}</td>
+              <td><button class="btn btn-danger" onclick="deleteMessage(${m.id})">刪除</button></td>
+            </tr>`;
+          }).join('')}
+        </table>
+      </div>
+      <div class="card">
+        <h3>💬 回覆管理（replies - 外鍵關聯 messages & users）</h3>
+        <table>
+          <tr><th>ID</th><th>對應留言 ID</th><th>回覆者</th><th>回覆內容</th><th>操作</th></tr>
+          ${db.replies.map(r => `
+            <tr>
+              <td>${r.id}</td>
+              <td>#${r.message_id}</td>
+              <td>${esc(userMap[r.user_id]?.username || '')}</td>
+              <td>${esc(r.reply_content)}</td>
+              <td><button class="btn btn-danger" onclick="deleteReply(${r.id})">刪除</button></td>
+            </tr>
+          `).join('')}
+        </table>
+      </div>`;
+    }
+  } else {
+    html += `
+    <div class="grid">
+      <div>
+        ${!currentUser ? `
+          <div class="card">
+            <h3>🔑 會員登入</h3>
+            <form onsubmit="login(event, 'front')">
+              <input type="text" name="username" placeholder="帳號（測試：admin 或 小華）" required>
+              <input type="password" name="password" placeholder="密碼（admin123 或 user123）" required>
+              <button class="btn btn-primary" style="width:100%;" type="submit">登入</button>
+            </form>
+          </div>
+          <div class="card">
+            <h3>✨ 快速註冊</h3>
+            <form onsubmit="registerUser(event)">
+              <input type="text" name="username" placeholder="新帳號名稱" required>
+              <input type="password" name="password" placeholder="設定密碼" required>
+              <input type="email" name="email" placeholder="Email（選填）">
+              <button class="btn btn-admin" style="width:100%;" type="submit">註冊會員</button>
+            </form>
+          </div>
+        ` : ''}
+        <div class="card cat-list">
+          <h3>📌 文章分類篩選</h3>
+          <a class="${catFilter === 0 ? 'active' : ''}" onclick="setCat(0)">全部留言</a>
+          ${db.categories.map(c => `
+            <a class="${catFilter === c.id ? 'active' : ''}" onclick="setCat(${c.id})">${esc(c.category_name)}</a>
+          `).join('')}
+        </div>
+      </div>
+      <div>
+        ${currentUser ? `
+          <div class="card">
+            <h3>✍️ 發表新留言</h3>
+            <form onsubmit="addMessage(event)">
+              <select name="category_id" required>
+                ${db.categories.map(c => `<option value="${c.id}">${esc(c.category_name)}</option>`).join('')}
+              </select>
+              <textarea name="content" rows="3" placeholder="輸入留言內容..." required></textarea>
+              <button class="btn btn-primary" type="submit">送出留言</button>
+            </form>
+          </div>
+        ` : ''}
+        ${msgs.map(m => {
+          const likeCount = db.message_likes.filter(l => l.message_id === m.id).length;
+          const isLiked = currentUser && db.message_likes.some(l => l.message_id === m.id && l.user_id === currentUser.id);
+          const reps = db.replies.filter(r => r.message_id === m.id);
+          return `
+          <div class="card">
+            <div class="msg-meta">
+              <div>
+                <strong>👤 ${esc(userMap[m.user_id]?.username || '')}</strong>
+                <span class="tag">${esc(catMap[m.category_id]?.category_name || '')}</span>
+              </div>
+              <span>🕒 ${esc(m.created_at)}</span>
+            </div>
+            <p style="margin:8px 0 12px;font-size:15px;line-height:1.6;">${esc(m.content)}</p>
+            <div style="margin-bottom:8px;">
+              ${currentUser ? `
+                <button class="btn ${isLiked ? 'btn-primary' : ''}" style="padding:4px 10px;font-size:13px;" onclick="toggleLike(${m.id})">
+                  👍 按讚 (${likeCount})
+                </button>
+              ` : `<span style="font-size:13px;color:#64748b;">👍 ${likeCount} 個讚（登入後可按讚與回覆）</span>`}
+            </div>
+            ${reps.map(rep => `
+              <div class="reply-box">
+                <strong>${esc(userMap[rep.user_id]?.username || '')}：</strong>${esc(rep.reply_content)}
+                <span style="float:right;color:#94a3b8;font-size:12px;">${esc(rep.created_at)}</span>
+              </div>
+            `).join('')}
+            ${currentUser ? `
+              <form onsubmit="addReply(event, ${m.id})" style="display:flex;gap:8px;margin-top:10px;">
+                <input type="text" name="reply_content" placeholder="寫下你的回覆..." required style="margin:0;">
+                <button class="btn btn-primary" style="white-space:nowrap;" type="submit">回覆</button>
+              </form>
+            ` : ''}
+          </div>`;
+        }).join('')}
+      </div>
+    </div>`;
+  }
+
+  html += `</div>`;
+  document.getElementById('app').innerHTML = html;
+}
+
+render();
+</script>
+</body>
+</html>
