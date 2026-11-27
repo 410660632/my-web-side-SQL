@@ -1,9 +1,9 @@
-SET FOREIGN_KEY_CHECKS = 0;
-SET SQL_MODE = "NO_AUTO_VALUE_ON_ZERO";
-START TRANSACTION;
-SET time_zone = "+00:00";
-
+DROP TABLE IF EXISTS `message_likes`;
+DROP TABLE IF EXISTS `replies`;
+DROP TABLE IF EXISTS `messages`;
+DROP TABLE IF EXISTS `users`;
 DROP TABLE IF EXISTS `categories`;
+
 CREATE TABLE `categories` (
   `id` int(11) NOT NULL AUTO_INCREMENT,
   `category_name` varchar(50) NOT NULL,
@@ -19,7 +19,6 @@ INSERT INTO `categories` (`id`, `category_name`) VALUES
 (11, '閒聊專區'),
 (12, '網站建議');
 
-DROP TABLE IF EXISTS `users`;
 CREATE TABLE `users` (
   `id` int(11) NOT NULL AUTO_INCREMENT,
   `username` varchar(50) NOT NULL,
@@ -37,7 +36,6 @@ INSERT INTO `users` (`id`, `username`, `password`, `role`, `email`, `avatar`, `c
 (2, '小華', 'user123', 'user', 'hua@example.com', NULL, '2026-11-06 02:56:27'),
 (5, '小明', 'userpass123', 'user', 'ming@example.com', NULL, '2026-11-06 03:26:21');
 
-DROP TABLE IF EXISTS `messages`;
 CREATE TABLE `messages` (
   `id` int(11) NOT NULL AUTO_INCREMENT,
   `user_id` int(11) NOT NULL,
@@ -58,7 +56,6 @@ INSERT INTO `messages` (`id`, `user_id`, `category_id`, `content`, `likes`, `cre
 (5, 1, 1, '這是我用 SQL INSERT INTO 手動新增的技術討論留言！', 0, '2026-11-06 03:27:00'),
 (6, 5, 11, 'nice', 1, '2026-11-06 03:32:44');
 
-DROP TABLE IF EXISTS `replies`;
 CREATE TABLE `replies` (
   `id` int(11) NOT NULL AUTO_INCREMENT,
   `message_id` int(11) NOT NULL,
@@ -75,7 +72,6 @@ INSERT INTO `replies` (`id`, `message_id`, `user_id`, `reply_content`) VALUES
 (2, 2, 5, '跨資料表留言測試成功！'),
 (3, 5, 2, 'SQL INSERT 新增留言很方便！');
 
-DROP TABLE IF EXISTS `message_likes`;
 CREATE TABLE `message_likes` (
   `id` int(11) NOT NULL AUTO_INCREMENT,
   `message_id` int(11) NOT NULL,
@@ -102,6 +98,3 @@ ALTER TABLE `replies`
 ALTER TABLE `message_likes`
   ADD CONSTRAINT `fk_like_message` FOREIGN KEY (`message_id`) REFERENCES `messages` (`id`) ON DELETE CASCADE ON UPDATE CASCADE,
   ADD CONSTRAINT `fk_like_user` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`) ON DELETE CASCADE ON UPDATE CASCADE;
-
-COMMIT;
-SET FOREIGN_KEY_CHECKS = 1;
